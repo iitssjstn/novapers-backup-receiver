@@ -1,0 +1,15 @@
+[Unit]
+Description=Novapers back-up-ontvanger
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/backup-receiver
+EnvironmentFile=/opt/backup-receiver/.env
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=5
+User=backupreceiver
+
+[Install]
+WantedBy=multi-user.target
