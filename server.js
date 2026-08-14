@@ -332,20 +332,32 @@ const server = http.createServer((req, res) => {
     let body = "";
     req.on("data", (chunk) => { body += chunk; });
     req.on("end", () => {
+      let password;
       try {
-        const { password } = JSON.parse(body);
-        if (!password || password.length < 8) {
-          res.writeHead(400, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ error: "Wachtwoord moet minstens 8 tekens zijn." }));
-          return;
-        }
+        password = JSON.parse(body).password;
+      } catch {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Ongeldig verzoek (kon de aanvraag niet lezen)" }));
+        return;
+      }
+
+      if (!password || password.length < 8) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Wachtwoord moet minstens 8 tekens zijn." }));
+        return;
+      }
+
+      try {
         const { salt, hash } = hashPassword(password);
         fs.writeFileSync(AUTH_FILE, JSON.stringify({ salt, hash }));
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ success: true }));
-      } catch {
-        res.writeHead(400, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Ongeldig verzoek" }));
+      } catch (err) {
+        const hint = (err.code === "EACCES" || err.code === "EPERM")
+          ? `Geen schrijfrechten voor ${STORAGE_DIR} — check de eigenaar van deze map op de server (bijv. met "ls -la" en zo nodig "chown").`
+          : err.message;
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: `Kon het wachtwoord niet opslaan: ${hint}` }));
       }
     });
     return;
